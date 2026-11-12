@@ -1,0 +1,33 @@
+name: Build main and release images
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  # release.yml starts the release build this way on the tag it pushes,
+  # because a tag pushed with GITHUB_TOKEN starts no workflow. A run on a
+  # tag ref behaves like a tag push: every job decides by github.ref. The
+  # populate-sources job refuses any other ref.
+  workflow_dispatch:
+
+# Read-only by default. A job that needs more (packages, attestations,
+# id-token, pull-requests) asks for it in its own permissions block.
+permissions:
+  contents: read
+
+env:
+  VERSION: ${{ github.ref_name }}
+  CACHE_TO: mode=max,ignore-error=true,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
+  CACHE_TO_MIN: mode=min,ignore-error=true,compression=zstd,compression-level=3,oci-mediatypes=true,image-manifest=true
+
+# Tags should not save the cache as they wont be ever reused for further builds
+# so we only set the cache save on branch builds
+concurrency:
+  group: ci-image-${{ github.ref_name }}-${{ github.repository }}
+  cancel-in-progress: ${{ github.ref_name == 'main' }} # Only cancel in-progress for branch builds, never for tags
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "sha=${{ github.sha }} ref=${{ github.ref }}"; sleep 90; echo finished
